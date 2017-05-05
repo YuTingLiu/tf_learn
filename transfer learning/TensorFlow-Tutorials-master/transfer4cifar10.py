@@ -39,7 +39,7 @@ def predict_cls(transfer_values, labels, cls_true):
                      y_true: labels[i:j]}
 
         # Calculate the predicted class using TensorFlow.
-        cls_pred[i:j] = sess.run(y_pred_cls, feed_dict=feed_dict)
+        cls_pred[i:j] = sess.run(y_pred_cls, feed_dict={x: transfer_values[i:j],y_true: labels[i:j]})
 
         # Set the start-index for the next batch to the
         # end-index of the current batch.
@@ -261,4 +261,4 @@ with tf.Session() as sess:
     print_test_accuracy(show_example_errors=True,
                         show_confusion_matrix=True)
 #    print("Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256], keep_prob: 1.}))
-    
+       
