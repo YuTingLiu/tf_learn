@@ -4,6 +4,8 @@ Created on Thu May  4 15:05:40 2017
 
 @author: L
 @input : transfer-values
+@issue
+1.placeholder feed problem
 """
 import tensorflow as tf
 import numpy as np
@@ -11,18 +13,6 @@ import cifar10
 import pickle
 
 
-class_names = cifar10.load_class_names()
-print(class_names)
-images_train, cls_train, labels_train = cifar10.load_training_data()
-images_test, cls_test, labels_test = cifar10.load_test_data()
-
-with open(r'E:\tmp\CIFAR-10\inception_cifar10_test.pkl', mode='rb') as file:
-    transfer_values_test = pickle.load(file)
-with open(r'E:\tmp\CIFAR-10\inception_cifar10_train.pkl', mode='rb') as file:
-    transfer_values_train = pickle.load(file)
-print(transfer_values_train.shape)
-print(type(transfer_values_train))
-batch_size = 256
 
 def predict_cls(transfer_values, labels, cls_true):
     # Number of images.
@@ -171,10 +161,23 @@ def random_batch(transfer_values_train,labels_train):
 
     return x_batch, y_batch
 
+class_names = cifar10.load_class_names()
+print(class_names)
+images_train, cls_train, labels_train = cifar10.load_training_data()
+images_test, cls_test, labels_test = cifar10.load_test_data()
+
+with open(r'E:\tmp\CIFAR-10\inception_cifar10_test.pkl', mode='rb') as file:
+    transfer_values_test = pickle.load(file)
+with open(r'E:\tmp\CIFAR-10\inception_cifar10_train.pkl', mode='rb') as file:
+    transfer_values_train = pickle.load(file)
+print(transfer_values_train.shape)
+print(type(transfer_values_train))
+batch_size = 64
+
 transfer_len = 2048
 num_classes = 10
 train_batch_size = 64
-training_iters = 200000
+training_iters = 2000000
 
 
 #1.create pleaceholder
@@ -196,7 +199,12 @@ def new_net(x,keep_prob,transfer_len,num_classes):
     dense = tf.reshape(x, [-1, w_d.get_shape().as_list()[0]])
     dense = tf.nn.relu(tf.add(tf.matmul(dense, w_d), b_d))
     dense = tf.nn.dropout(dense, keep_prob)
-    return dense
+    
+    w_out = tf.Variable(tf.random_normal([1024, num_classes]))
+    b_out = tf.Variable(tf.random_normal([num_classes]))
+    # 网络输出层
+    out = tf.matmul(dense, w_out) + b_out
+    return out
 
 # 构建模型
 y_pred = new_net(x,keep_prob,transfer_len,num_classes)
@@ -220,7 +228,7 @@ with tf.Session() as sess:
     sess.run(init)
     step = 1
     while step * train_batch_size < training_iters:
-        print('\rstep is ',step)
+#        print('\rstep is ',step)
         # 获取批数据
         x_batch, y_true_batch = random_batch(transfer_values_train,labels_train)
 
@@ -228,27 +236,29 @@ with tf.Session() as sess:
         # for placeholder variables in the TensorFlow graph.
         feed_dict_train = {x: x_batch,
                            y_true: y_true_batch}
-        print(x)
-        print(y_true)
+#        print(x)
+#        print(y_true)
         # Run the optimizer using this batch of training data.
         # TensorFlow assigns the variables in feed_dict_train
         # to the placeholder variables and then runs the optimizer.
         # We also want to retrieve the global_step counter.
-        i_global, _ = sess.run([global_step, optimizer],feed_dict=feed_dict_train)
+        sess.run(optimizer , feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 0.8})
                                   
         if step % 100 == 0:
             # 计算精度
-            acc = sess.run(accuracy, feed_dict_train)
+            acc = sess.run(accuracy, feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 1.})
             # 计算损失值
-            loss = sess.run(cost, feed_dict_train)
+            loss = sess.run(cost, feed_dict={x: x_batch, y_true: y_true_batch, keep_prob: 1.})
             print("Iter " + str(step*train_batch_size) + ", Minibatch Loss= " +\
             "{:.6f}".format(loss) + ", Training Accuracy= " + "{:.5f}".format(acc))
             # 如果准确率大于50%,保存模型,完成训练
             if acc > 0.9:
-                saver.save(sess, "crack_capcha.model", global_step=step)
+#                saver.save(sess,save_path='', "crack_capcha.model", global_step=step)
                 break
         step += 1
     print("Optimization Finished!")
     # 计算测试精度
+    print_test_accuracy(show_example_errors=True,
+                        show_confusion_matrix=True)
 #    print("Testing Accuracy:", sess.run(accuracy, feed_dict={x: mnist.test.images[:256], y: mnist.test.labels[:256], keep_prob: 1.}))
     
