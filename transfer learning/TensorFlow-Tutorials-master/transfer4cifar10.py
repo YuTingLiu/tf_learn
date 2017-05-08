@@ -35,10 +35,12 @@ def predict_cls(transfer_values, labels, cls_true):
 
         # Create a feed-dict with the images and labels
         # between index i and j.
-        feed_dict = {x: transfer_values[i:j],
-                     y_true: labels[i:j]}
+#        feed_dict = {x: transfer_values[i:j],
+#                     y_true: labels[i:j]}
 
         # Calculate the predicted class using TensorFlow.
+        x = tf.placeholder(tf.float32,shape=[None,transfer_len],name='x')
+        y_true = tf.placeholder(tf.float32,shape=[None,num_classes],name='y')
         cls_pred[i:j] = sess.run(y_pred_cls, feed_dict={x: transfer_values[i:j],y_true: labels[i:j]})
 
         # Set the start-index for the next batch to the
@@ -252,8 +254,8 @@ with tf.Session() as sess:
             print("Iter " + str(step*train_batch_size) + ", Minibatch Loss= " +\
             "{:.6f}".format(loss) + ", Training Accuracy= " + "{:.5f}".format(acc))
             # 如果准确率大于50%,保存模型,完成训练
-            if acc > 0.9:
-#                saver.save(sess,save_path='', "crack_capcha.model", global_step=step)
+            if acc > 0.95:
+                saver.save(sess,save_path=r'e:\\crack_capcha.model', global_step=step)
                 break
         step += 1
     print("Optimization Finished!")
