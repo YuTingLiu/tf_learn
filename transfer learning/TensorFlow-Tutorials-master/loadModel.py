@@ -43,7 +43,7 @@ y_pred_cls = tf.argmax(out, dimension=1)
 modeldir = r'E:\tmp\tl_inception'
 modelName = r'tl_inception.model-11400.meta'
 
-with tf.Session(graph=) as sess: 
+with tf.Session() as sess: 
     sess.run(tf.global_variables_initializer())
     saver = tf.train.import_meta_graph(''.join([modeldir,'\\',modelName]))
     ckpt = tf.train.get_checkpoint_state(modeldir)

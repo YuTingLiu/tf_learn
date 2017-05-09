@@ -639,7 +639,8 @@ if __name__ == '__main__':
 
     # Print the scores and names for the top-10 predictions.
     model.print_scores(pred=pred, k=10)
-
+#    with model.graph.as_default():####默认图与自定义图的关系
+#        print([n.name for n in tf.get_default_graph().as_graph_def().node])
     # Close the TensorFlow session.
     model.close()
 
