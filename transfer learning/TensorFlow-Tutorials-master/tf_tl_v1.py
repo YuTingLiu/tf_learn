@@ -3,7 +3,18 @@ import numpy as np
 import pickle
 import cifar10
 import os
+import matplotlib.pylab as plt
 
+
+def plot_helper(img_array):
+    if img_array.shape == (2048,):
+        print('is transfer values',img_array)
+        img_array = img_array.reshape((32,64))
+        plt.imshow(img_array,interpolation="nearest",cmap="Reds")
+    else:
+        plt.imshow(img_array,interpolation="nearest")
+    plt.show()
+    
 def error_rate(p , t):
     return np.mean(p != t)
         
@@ -48,7 +59,7 @@ class tl_Inception:
             self.w_out = tf.Variable(tf.random_normal([1024, K]),name='W')
             self.b_out = tf.Variable(tf.random_normal([K]),name='b')
             
-            self.saver = tf.train.Saver({'W':self.w_out,'b':self.b_out})
+            self.saver = tf.train.Saver()
             # Create a TensorFlow session for executing the graph.
             
             self.session = tf.Session(graph=self.graph)
@@ -69,7 +80,7 @@ class tl_Inception:
             dense = tf.nn.relu(tf.add(tf.matmul(dense, self.w_d), self.b_d))
             
             #dropout
-            dense = tf.nn.dropout(dense, self.keep_prob)
+#            dense = tf.nn.dropout(dense, self.keep_prob)
             
             #简单的softmax层
             y_pred = tf.matmul(dense,self.w_out) + self.b_out
@@ -87,7 +98,7 @@ class tl_Inception:
             self.session.run(init)
         
             step = 1
-            while step * train_batch_size < training_iters:
+            while step  < training_iters:
         #        print('\rstep is ',step)
                 # 获取批数据
                 x_batch, y_true_batch = random_batch(_X,_Y,batch_size)
@@ -110,18 +121,24 @@ class tl_Inception:
                     loss = self.session.run(cost, feed_dict={self.x: x_batch, 
                                                      self.y_true: y_true_batch,
                                                      self.keep_prob : 1.})
-                    print("Iter " + str(step*train_batch_size) + ", Minibatch Loss= " +\
+                    print("Iter " + str(step) + ", Minibatch Loss= " +\
                     "{:.6f}".format(loss) + ", Training Accuracy= " + "{:.5f}".format(acc))
                     # 如果准确率大于50%,保存模型,完成训练
-                    if acc > 0.99:
-                        self.saver.save(self.session,save_path=''.join([self.savefile,r'\\',r'tl_inception.model']), global_step=step)
+                    if acc > 0.96:
+                        self.saver.save(self.session,save_path=''.join([self.savefile,'\\',r'tl_inception.model']), global_step=step)
                         break
                 step += 1
-    
+            #test
+            pred_cls = self.session.run(y_pred_cls , feed_dict={self.x:Xtest[0:64]})
+            true_cls = np.argmax(Ytest[0:64],axis=1)
+            print(pred_cls)
+            print(true_cls)
+            print(np.mean(pred_cls != true_cls))
+            print(np.sum(pred_cls != true_cls))
 
 
     def predict(self,_X):
-        N,D = _X.shape
+#        N,D = _X.shape
         modelname = r'tl_inception.model-11400.meta'
 #        self.build(D,K)####wrong 与模型中tensor冲突
         # Create a TensorFlow session for executing the graph.
@@ -151,19 +168,21 @@ class tl_Inception:
             b_out = self.graph.get_tensor_by_name('b:0')
             _input = self.graph.get_tensor_by_name('x:0')
             _out = self.graph.get_tensor_by_name('y:0')
-            y_pre_cls = self.graph.get_tensor_by_name('result:0')
+            y_pre_cls = self.graph.get_tensor_by_name('output:0')
             keep_prob = self.graph.get_tensor_by_name('Placeholder:0')#找到这个未命名的tensor
 #            print(y_pre_cls)
 #            print(_input)
 #            print(keep_prob)
 #            print(dsdfs)
             self.session.run(tf.global_variables_initializer())
-            pred = self.session.run(y_pre_cls,feed_dict={_input:_X,keep_prob:1.})
+            pred = self.session.run(y_pre_cls,feed_dict={_input:_X})
             return pred
     
     
     def score(self ,_X,_Y):
         return 1-error_rate(self.predict(_X),_Y)
+        
+    
         
 def train():      
     class_names = cifar10.load_class_names()
@@ -184,26 +203,36 @@ def train():
     
 def test():
     class_names = cifar10.load_class_names()
-    test_batch_size = 1024
-    print(class_names)
+    test_batch_size = 64
     images_test, cls_test, labels_test = cifar10.load_test_data()
-    
     with open(r'E:\tmp\CIFAR-10\inception_cifar10_test.pkl', mode='rb') as file:
         transfer_values_test = pickle.load(file)
-    
     model = tl_Inception(r'E:\tmp\tl_inception')
     score_list = []
-    for i in range(10):
+    for i in range(1):
         _x,_y = random_batch(transfer_values_test,labels_test,test_batch_size)
         pred = model.predict(_x)
         print(pred)
         true_cls = np.argmax(_y,axis=1)
         print(true_cls)
         print('score is ', 1-np.mean(pred != true_cls))
-        print('total wrong classified sample ',np.sum(pred != true_cls))
+        print('wrong classified samples  ',np.sum(pred != true_cls))
         score_list.append(1-np.mean(pred != true_cls))
     print('mean score is ',np.mean(score_list))
     
-train()
-test()
+    #test with plot
+    im_list = np.random.choice(10000,size=10,replace=False)
+    im = images_test[im_list]
+    label = np.argmax(labels_test[im_list],axis=1)
+    _x = transfer_values_test[im_list]
+    pred = model.predict(_x)
+    for i in range(10):
+        print(im[i].shape)
+        plot_helper(im[i])
+        plot_helper(_x[i])
+        print(label[i],'-',pred[i])
+        print(label[i],'',class_names[label[i]],'-',pred[i],class_names[pred[i]])
+    
+#train()
+#test()
     
