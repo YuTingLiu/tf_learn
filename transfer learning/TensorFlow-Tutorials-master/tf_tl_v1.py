@@ -138,9 +138,8 @@ class tl_Inception:
 
 
     def predict(self,_X):
-#        N,D = _X.shape
-        modelname = r'tl_inception.model-11400.meta'
-#        self.build(D,K)####wrong 与模型中tensor冲突
+        N,D = _X.shape
+#        self.build(D,10,64)####wrong 与模型中tensor冲突
         # Create a TensorFlow session for executing the graph.
         self.session = tf.Session(graph=self.graph)
         
@@ -169,12 +168,12 @@ class tl_Inception:
             _input = self.graph.get_tensor_by_name('x:0')
             _out = self.graph.get_tensor_by_name('y:0')
             y_pre_cls = self.graph.get_tensor_by_name('output:0')
-            keep_prob = self.graph.get_tensor_by_name('Placeholder:0')#找到这个未命名的tensor
+#            keep_prob = self.graph.get_tensor_by_name('Placeholder:0')#找到这个未命名的tensor
 #            print(y_pre_cls)
 #            print(_input)
 #            print(keep_prob)
 #            print(dsdfs)
-            self.session.run(tf.global_variables_initializer())
+#            self.session.run(tf.global_variables_initializer())   ####非常重要，不能添加这一句
             pred = self.session.run(y_pre_cls,feed_dict={_input:_X})
             return pred
     
@@ -204,13 +203,21 @@ def train():
 def test():
     class_names = cifar10.load_class_names()
     test_batch_size = 64
+#    images_train, cls_train, labels_train = cifar10.load_training_data()
     images_test, cls_test, labels_test = cifar10.load_test_data()
     with open(r'E:\tmp\CIFAR-10\inception_cifar10_test.pkl', mode='rb') as file:
         transfer_values_test = pickle.load(file)
+#    with open(r'E:\tmp\CIFAR-10\inception_cifar10_train.pkl', mode='rb') as file:
+#        transfer_values_train = pickle.load(file)
+        
+        
     model = tl_Inception(r'E:\tmp\tl_inception')
     score_list = []
+    _X = transfer_values_test
+    _Y = labels_test
+    _im = images_test
     for i in range(1):
-        _x,_y = random_batch(transfer_values_test,labels_test,test_batch_size)
+        _x,_y = random_batch(_X,_Y,test_batch_size)
         pred = model.predict(_x)
         print(pred)
         true_cls = np.argmax(_y,axis=1)
@@ -222,9 +229,9 @@ def test():
     
     #test with plot
     im_list = np.random.choice(10000,size=10,replace=False)
-    im = images_test[im_list]
-    label = np.argmax(labels_test[im_list],axis=1)
-    _x = transfer_values_test[im_list]
+    im = _im[im_list]
+    label = np.argmax(_Y[im_list],axis=1)
+    _x = _X[im_list]
     pred = model.predict(_x)
     for i in range(10):
         print(im[i].shape)
@@ -234,5 +241,5 @@ def test():
         print(label[i],'',class_names[label[i]],'-',pred[i],class_names[pred[i]])
     
 #train()
-#test()
+test()
     
